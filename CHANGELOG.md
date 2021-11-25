@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Fix: Sending errors in Spring WebFlux integration (#1819)
+
+
 ## 5.4.2
 
 * Ref: catch Throwable instead of Exception to suppress internal SDK errors (#1812)
