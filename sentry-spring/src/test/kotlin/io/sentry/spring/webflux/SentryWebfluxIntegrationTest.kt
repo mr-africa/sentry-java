@@ -7,8 +7,6 @@ import com.nhaarman.mockitokotlin2.never
 import com.nhaarman.mockitokotlin2.reset
 import com.nhaarman.mockitokotlin2.verify
 import com.nhaarman.mockitokotlin2.whenever
-import io.sentry.HubAdapter
-import io.sentry.IHub
 import io.sentry.ITransportFactory
 import io.sentry.Sentry
 import io.sentry.checkEvent
@@ -34,7 +32,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
+import reactor.util.context.ContextView
 import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -138,18 +136,10 @@ open class App {
     open fun mockTransport() = transport
 
     @Bean
-    open fun hub() = HubAdapter.getInstance()
+    open fun sentryFilter() = SentryWebFilter()
 
     @Bean
-    open fun sentryFilter(hub: IHub) = SentryWebFilter(hub)
-
-    @Bean
-    open fun sentryWebExceptionHandler(hub: IHub) = SentryWebExceptionHandler(hub)
-
-    @Bean
-    open fun sentryScheduleHookRegistrar() = ApplicationRunner {
-        Schedulers.onScheduleHook("sentry", SentryScheduleHook())
-    }
+    open fun sentryWebExceptionHandler() = SentryWebExceptionHandler()
 
     @Bean
     open fun sentryInitializer(transportFactory: ITransportFactory) = ApplicationRunner {
@@ -165,9 +155,15 @@ open class App {
 class HelloController {
 
     @GetMapping("/hello")
-    fun hello(): Mono<Void> {
-        Sentry.captureMessage("hello")
-        return Mono.empty<Void>()
+    fun hello(): Mono<String> {
+        return Mono.just("hello")
+            .`as` { mono ->
+                Mono.deferContextual { ctx: ContextView ->
+                    mono.doOnNext {
+                        SentryWebFilter.getHub(ctx).ifPresent { hub -> hub.captureMessage("hello") }
+                    }
+                }
+            }
     }
 
     @GetMapping("/throws")
