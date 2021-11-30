@@ -4,6 +4,9 @@
 
 * Fix: Sending errors in Spring WebFlux integration (#1819)
 
+## 5.4.3
+
+* Fix: Only report App start measurement for full launch on Android (#1821)
 
 ## 5.4.2
 
